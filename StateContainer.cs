@@ -5,13 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-//coucou
 using CRUD.Entities;
+
 
 namespace CRUD
 {
     public class StateContainer
     {
+
 
         #region Employe
         private List<Employe> employes= new();

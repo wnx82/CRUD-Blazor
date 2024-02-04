@@ -1,0 +1,415 @@
+﻿@page "/employe"
+@inject StateContainer StateContainer
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@inject IToastService ToastService
+
+<PageTitle>Listing employé</PageTitle>
+
+<h1>Listing employé</h1>
+
+<p>liste des employés</p>
+@(selected is null ? "Ajout d'un employe" : "Modification d'un employe")
+
+<Form>
+    <EditForm Model="@employe" OnValidSubmit="@(selected is null ? (Func<Task>)AddEmploye : UpdateEmploye)">
+        <DataAnnotationsValidator />
+        <Field>
+
+
+            <div class="form-group">
+                <label for="nom">Nom</label>
+                <div class="col-sm-10">
+                    <InputText id="nom" type="text" class="form-control" placeholder="Obligatoire" @bind-Value="employe.Nom" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="prenom">Prenom</label>
+                <div class="col-sm-10">
+                    <InputText id="prenom" type="text" class="form-control" placeholder="" @bind-Value="employe.Prenom" />
+                </div>
+            </div>
+
+
+        </Field>
+        <div>
+            @if (employe.CreatedAt is not null)
+            {
+                <p>Créé : @employe.CreatedAt</p>
+                <p>Modifié : @employe.UpdatedAt</p>
+            }
+            @if (employe.DeletedAt is not null)
+            {
+                <p>Effacé : @employe.DeletedAt</p>
+            }
+        </div>
+        <button type="submit" class="btn btn-primary mt-2"><i class="oi oi-check"></i> @((selected is null) ? "Ajouter" : "Update")</button>
+    </EditForm>
+
+</Form>
+
+<div class="buttonsGroup m-1 ml-auto" style="display: flex; gap: 5px; justify-content: flex-end;">
+    @*
+    <button type="button" class="btn btn-secondary" @onclick="Reset">
+    <i class="oi oi-loop-circular"></i>
+    Reset
+    </button>*@
+
+    @if (selected is not null)
+    {
+        @if (employe.DeletedAt is null)
+        {
+            <button type="button" class="btn btn-danger" @onclick="DeleteEmploye"> <i class="oi oi-trash"></i> Delete</button>
+
+
+            @*                    <Button Color="Color.Danger" Clicked="DeleteEmploye">
+    <i class="fas fa-trash"></i> Delete
+    </Button>*@
+        }
+        else
+        {
+            <button type="button" class="btn btn-info" @onclick="RestoreDeletedEmploye"><i class="oi oi-action-undo"></i>Restaurer</button>
+            <button type="button" class="btn btn-danger" @onclick="DeleteCompleteEmploye"><i class="oi oi-trash"></i> Effacer définitivement</button>
+        }
+    }
+
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="highlight">
+            <h2>Admin</h2>
+        </div>
+        @if (isLoading)
+        {
+            <div class="skeleton-loader">
+                <div class="loader"></div>
+                <div>Loading...</div>
+            </div>
+        }
+        else
+        {
+
+
+            <Table Hoverable Striped>
+             <TableHeader>
+                 <TableRow>
+                     <TableHeaderCell>#</TableHeaderCell>
+                     <TableHeaderCell>Nom</TableHeaderCell>
+                     <TableHeaderCell>Prenom</TableHeaderCell>
+                     <TableHeaderCell>DeletedAt</TableHeaderCell>
+                 </TableRow>
+             </TableHeader>
+
+             <TableBody>
+                 @foreach (Employe employe in StateContainer.Employes)
+                    {
+                        var isSelected = selected == employe;
+                        var style = isSelected ? "box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); border: 1px solid #333; color: white; background-color: #337ab7;" : string.Empty;
+
+                        <TableRow @onclick="(() => SelectEmploye(employe))" style="@GetRowStyle(employe)">
+                            <TableRowHeader>@employe.Id</TableRowHeader>
+                                <TableRowCell>@employe.Nom</TableRowCell>
+                                <TableRowCell>@employe.Prenom</TableRowCell>
+                                <TableRowCell>@employe.DeletedAt</TableRowCell>
+                            </TableRow>
+                    }
+                </TableBody>
+            </Table>
+        }
+    </div>
+</div>
+
+@code {
+    Employe employe = new Employe();
+
+    private Employe? selected = null;
+
+    [Parameter]
+    public Action? OnEmployeSelected { get; set; }
+
+    private Action? OnEmployeUpdated;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.OnEmployeUpdated = async () =>
+        {
+            await InvokeAsync(StateHasChanged);
+        };
+        this.OnEmployeSelected = async () =>
+        {
+            await InvokeAsync(StateHasChanged);
+        };
+
+        StateContainer.OnEmployeUpdated += this.OnEmployeUpdated;
+        StateContainer.OnEmployeSelected += this.OnEmployeSelected;
+        await GetEmployes();
+    }
+
+    private bool isLoading = true;
+    // Récupérer les employes
+    public async Task GetEmployes()
+    {
+        isLoading = true; // Activer le loader
+
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{NavigationManager.BaseUri}api/employe/getall");
+
+        using (var response = await HttpClient.SendAsync(request))
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                var employes = await response.Content.ReadFromJsonAsync<List<Employe>>();
+
+                if (employes != null)
+                {
+                    StateContainer.Employes = employes;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+
+        isLoading = false; // Désactiver le loader
+    }
+
+
+    private void NewEmploye()
+    {
+        Reset();
+    }
+
+    // Ajouter un employe
+    private async Task AddEmploye()
+    {
+        var newEmploye = new Employe
+            {
+
+                Id = Guid.NewGuid(),
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+            };
+
+        var content = JsonContent.Create(newEmploye);
+
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/add");
+        requestMsg.Content = content;
+        using (var msg = await HttpClient.SendAsync(requestMsg))
+        {
+            if (msg.IsSuccessStatusCode)
+            {
+                StateContainer.Employes.Add(newEmploye);
+                Reset();
+                ToastService.ShowSuccess("Employe ajoutée!");
+
+            }
+            else
+            {
+                ToastService.ShowError("Une erreur s'est produite.");
+            }
+        }
+    }
+
+    // Mettre à jour une employe
+    private async Task UpdateEmploye()
+    {
+        if (selected is null)
+        {
+            return;
+        }
+
+        var employeUpdate = new Employe
+            {
+                Id = selected.Id,
+                Nom = selected.Nom, // Modifier en selected.Nom
+                Prenom = selected.Prenom, // Modifier en selected.Prenom
+                CreatedAt = selected.CreatedAt,
+                UpdatedAt = DateTime.Now,
+                DeletedAt = selected.DeletedAt,
+            };
+
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
+
+        using (var msg = await HttpClient.SendAsync(requestMsg))
+        {
+            if (msg.IsSuccessStatusCode)
+            {
+                var index = StateContainer.Employes.IndexOf(selected);
+                if (index != -1)
+                {
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+                    ToastService.ShowSuccess("Employe mis à jour!");
+                }
+            }
+        }
+    }
+
+    // RESET
+    private void Reset()
+    {
+        employe = new Employe();
+        selected = null;
+
+    }
+
+    // Delete Employe
+    private async Task DeleteEmploye()
+    {
+        if (selected is null)
+        {
+            return;
+        }
+
+        var employeUpdate = new Employe
+            {
+
+                Id = this.selected.Id,
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = employe.CreatedAt,
+                UpdatedAt = DateTime.Now,
+                DeletedAt = DateTime.Now,
+
+            };
+
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
+
+        using (var msg = await HttpClient.SendAsync(requestMsg))
+        {
+            if (msg.IsSuccessStatusCode)
+            {
+                var index = StateContainer.Employes.IndexOf(selected);
+                if (index != -1)
+                {
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+
+                    ToastService.ShowWarning("Employe effacé");
+                }
+            }
+        }
+    }
+
+    // Restaurer une Employe
+    private async Task RestoreDeletedEmploye()
+    {
+        if (selected is null)
+        {
+            return;
+        }
+
+        var employeUpdate = new Employe
+            {
+
+                Id = this.selected.Id,
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = employe.CreatedAt,
+                UpdatedAt = DateTime.Now,
+                DeletedAt = null,
+
+            };
+
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
+
+        using (var msg = await HttpClient.SendAsync(requestMsg))
+        {
+            if (msg.IsSuccessStatusCode)
+            {
+                var index = StateContainer.Employes.IndexOf(selected);
+                if (index != -1)
+                {
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+                    ToastService.ShowInfo("Employe Restauré");
+                }
+            }
+        }
+    }
+
+    // Effacer une Employe
+    private async Task DeleteCompleteEmploye()
+    {
+        if (selected is null)
+        {
+            return;
+        }
+
+        bool confirmed = await ConfirmDelete();
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/delete");
+            requestMsg.Content = JsonContent.Create(selected);
+
+            using (var msg = await HttpClient.SendAsync(requestMsg))
+            {
+                if (msg.IsSuccessStatusCode)
+                {
+                    StateContainer.Employes.Remove(selected);
+                    ToastService.ShowWarning("Employe complètement effacée");
+                }
+                else
+                {
+                    string errorMessage = await msg.Content.ReadAsStringAsync();
+                    ToastService.ShowError(errorMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Une erreur s'est produite lors de la suppression de la employe.");
+            Console.WriteLine(ex);
+        }
+    }
+
+    // Selectionner une employe
+    private void SelectEmploye(Employe emp)
+    {
+
+        StateContainer.SelectedEmploye = emp;
+        selected = emp;
+        employe = emp;
+        InvokeAsync(StateHasChanged);
+
+    }
+
+    // Déselectionner une employe
+    private void UnSelectEmploye()
+    {
+        selected = null;
+        Reset();
+    }
+
+    // Mettre en évidence la ligne sélectionnée
+    private string GetRowStyle(Employe employe)
+    {
+        return selected == employe ? "box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); border: 1px solid #333; color: white; background-color: #337ab7;" : string.Empty;
+    }
+
+    // Confirmation d'effacement
+    async Task<bool> ConfirmDelete()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer définitivement cette employe ??");
+        return confirmed;
+    }
+
+    // Nettoyage et libération des ressources
+    public void Dispose()
+    {
+        StateContainer.OnEmployeUpdated -= this.OnEmployeUpdated;
+        StateContainer.OnEmployeSelected -= this.OnEmployeSelected;
+    }
+
+}
