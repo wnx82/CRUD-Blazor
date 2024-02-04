@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System;
 
 namespace CRUD.Entities
 {
@@ -8,7 +9,7 @@ namespace CRUD.Entities
 
         [Key]
         [Column("Id_Employe")]
-        public Guid idEmpoloye { get; set; }
+        public Guid Id { get; set; }
 
         [Column("Nom")]
         public string? Nom { get; set; }
@@ -20,6 +21,15 @@ namespace CRUD.Entities
         [Column("Birthday")]
         public DateTime? Birthday { get; set; }
 
+
+        [Column("CreatedAt")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("UpdatedAt")]
+        public DateTime? UpdatedAt { get; set; }
+
+        [Column("DeletedAt")]
+        public DateTime? DeletedAt { get; set; }
 
     }
 }

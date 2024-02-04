@@ -2,149 +2,169 @@
 @inject StateContainer StateContainer
 @inject HttpClient HttpClient
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@inject IToastService ToastService
 
 
 <PageTitle>Index</PageTitle>
 
 <h1>Employés</h1>
-    <EditForm Model="@Employe" OnValidSubmit="@(selected is null ? (Func<Task>)AddEmploye : UpdateEmploye)">
-        <DataAnnotationsValidator />
-        <Field>
 
-            <div class="form-group">
-                <label for="id">Nom</label>
-                <div class="col-sm-10">
-                    <InputText id="nom" type="text" class="form-control" placeholder="Obligatoire" @bind-Value="Employe.Nom" autofocus />
-                    <ValidationMessage For="@(() => employe.Nom)" />
+@(selected is null ? "Ajout d'une employe" : "Modification d'une employe")
+
+
+    <EditForm Model="@employe" OnValidSubmit="@(selected is null ? (Func<Task>)AddEmploye : UpdateEmploye)">
+            <DataAnnotationsValidator />
+            <Field>
+
+
+                <div class="form-group">
+                    <label for="nom">Nom</label>
+                    <div class="col-sm-10">
+                        <InputText id="nom" type="text" class="form-control" placeholder="Obligatoire" @bind-Value="employe.Nom" />
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="nom">Prenom</label>
-                <div class="col-sm-10">
-                <InputText id="Prenom" type="text" class="form-control" placeholder="Obligatoire" @bind-Value="Employe.Prenom" />
-                    <ValidationMessage For="@(() => employe.Prenom)" />
-                </div>
-            </div>
+                <div class="form-group">
+                    <label for="prenom">Prenom</label>
+                    <div class="col-sm-10">
+                        <InputText id="prenom" type="text" class="form-control" placeholder="" @bind-Value="employe.Prenom" />
+                    </div>
+                </div>                        
+  
  
-        </Field>
-        <div>
-            @if (rue.CreatedAt is not null)
-        {
-            <p>Créé : @rue.CreatedAt</p>
-            <p>Modifié : @rue.UpdatedAt</p>
-        }
-        @if (rue.DeletedAt is not null)
-        {
-            <p>Effacé : @rue.DeletedAt</p>
-        }
-                </div>
-                <button type="submit" class="btn btn-primary mt-2"><i class="oi oi-check"></i> @((selected is null) ? "Ajouter" : "Update")</button>
-            </EditForm>
-
-
-
-@code {
-    Employe employe = new Employe();
-    private Rue? selected = null;
-
-    [Parameter]
-    public Action? OnRueSelected { get; set; }
-
-    private Action? OnRueUpdated;
-
-    private string CpString
-    {
-        get => rue.Cp?.ToString() ?? string.Empty;
-        set
-        {
-            if (int.TryParse(value, out int result))
+            </Field>
+            <div>
+                @if (employe.CreatedAt is not null)
             {
-                rue.Cp = result;
+                <p>Créé : @employe.CreatedAt</p>
+                <p>Modifié : @employe.UpdatedAt</p>
+            }
+            @if (employe.DeletedAt is not null)
+            {
+                <p>Effacé : @employe.DeletedAt</p>
+            }
+        </div>
+        <button type="submit" class="btn btn-primary mt-2"><i class="oi oi-check"></i> @((selected is null) ? "Ajouter" : "Update")</button>
+    </EditForm>
+
+
+
+    <div class="buttonsGroup m-1 ml-auto" style="display: flex; gap: 5px; justify-content: flex-end;">
+        @*
+        <button type="button" class="btn btn-secondary" @onclick="Reset">
+        <i class="oi oi-loop-circular"></i>
+        Reset
+        </button>*@
+
+        @if (selected is not null)
+        {
+            @if (employe.DeletedAt is null)
+            {
+                <button type="button" class="btn btn-danger" @onclick="DeleteEmploye"> <i class="oi oi-trash"></i> Delete</button>
+
+
+                @*                    <Button Color="Color.Danger" Clicked="DeleteEmploye">
+        <i class="fas fa-trash"></i> Delete
+        </Button>*@
             }
             else
             {
-                rue.Cp = null;
+                <button type="button" class="btn btn-info" @onclick="RestoreDeletedEmploye"><i class="oi oi-action-undo"></i>Restaurer</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteCompleteEmploye"><i class="oi oi-trash"></i> Effacer définitivement</button>
             }
         }
-    }
+
+    </div>
+
+    <div class="row">
+        <div class="col-md-9">
+            <div class="highlight">
+                <h2>Admin</h2>
+            </div>
+            @if (isLoading)
+            {
+                <div class="skeleton-loader">
+                    <div class="loader"></div>
+                    <div>Loading...</div>
+                </div>
+            }
+            else
+            {
+
+
+                <Table Hoverable Striped>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell>#</TableHeaderCell>
+                            <TableHeaderCell>Nom</TableHeaderCell>
+                            <TableHeaderCell>Prenom</TableHeaderCell>
+                            <TableHeaderCell>DeletedAt</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                        @foreach (Employe employe in StateContainer.Employes)
+                            {
+                                var isSelected = selected == employe;
+                                var style = isSelected ? "box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); border: 1px solid #333; color: white; background-color: #337ab7;" : string.Empty;
+
+                                <TableRow @onclick="(() => SelectEmploye(employe))" style="@GetRowStyle(employe)">
+                                    <TableRowHeader>@employe.Id</TableRowHeader>
+                                    <TableRowCell>@employe.Nom</TableRowCell>
+                                    <TableRowCell>@employe.Prenom</TableRowCell>
+                                    <TableRowCell>@employe.DeletedAt</TableRowCell>
+                                </TableRow>
+                            }
+                    </TableBody>
+                </Table>
+            }
+        </div>
+    </div>
+
+@code {
+    Employe employe = new Employe();
+
+    private Employe? selected = null;
+
+    [Parameter]
+    public Action? OnEmployeSelected { get; set; }
+
+    private Action? OnEmployeUpdated;
 
 
     protected override async Task OnInitializedAsync()
     {
-        this.OnRueUpdated = async () =>
+        this.OnEmployeUpdated = async () =>
         {
             await InvokeAsync(StateHasChanged);
         };
-        this.OnRueSelected = async () =>
+        this.OnEmployeSelected = async () =>
         {
             await InvokeAsync(StateHasChanged);
         };
 
-        StateContainer.OnRueUpdated += this.OnRueUpdated;
-        StateContainer.OnRueSelected += this.OnRueSelected;
-        await GetRues();
+        StateContainer.OnEmployeUpdated += this.OnEmployeUpdated;
+        StateContainer.OnEmployeSelected += this.OnEmployeSelected;
+        await GetEmployes();
     }
 
     private bool isLoading = true;
-
-    //système de pagination
-    private const string PREVIOUS = "previous";
-    private const string NEXT = "next";
-    private int currentPageAsInt = 1;
-    private const int PageSize = 10;
-
-    private bool IsActive(string page)
-        => currentPageAsInt.ToString() == page;
-
-    private bool IsPageNavigationDisabled(string navigation)
-    {
-        if (navigation.Equals(PREVIOUS))
-        {
-            return currentPageAsInt == 1;
-        }
-        else if (navigation.Equals(NEXT))
-        {
-            return currentPageAsInt == (int)Math.Ceiling((double)StateContainer.Rues.Count / PageSize);
-        }
-        return false;
-    }
-
-    private void Previous()
-    {
-        if (currentPageAsInt > 1)
-        {
-            currentPageAsInt -= 1;
-        }
-    }
-
-    private void Next()
-    {
-        if (currentPageAsInt < (int)Math.Ceiling((double)StateContainer.Rues.Count / PageSize))
-        {
-            currentPageAsInt += 1;
-        }
-    }
-
-    private void SetActive(string page)
-        => currentPageAsInt = int.Parse(page);
-
-
-    // Récupérer les rues
-    public async Task GetRues()
+    // Récupérer les employes
+    public async Task GetEmployes()
     {
         isLoading = true; // Activer le loader
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{NavigationManager.BaseUri}api/rue/getall");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{NavigationManager.BaseUri}api/employe/getall");
 
         using (var response = await HttpClient.SendAsync(request))
         {
             if (response.IsSuccessStatusCode)
             {
-                var rues = await response.Content.ReadFromJsonAsync<List<Rue>>();
+                var employes = await response.Content.ReadFromJsonAsync<List<Employe>>();
 
-                if (rues != null)
+                if (employes != null)
                 {
-                    StateContainer.Rues = rues;
+                    StateContainer.Employes = employes;
                     await InvokeAsync(StateHasChanged);
                 }
             }
@@ -154,41 +174,34 @@
     }
 
 
-    private void NewRue()
+    private void NewEmploye()
     {
         Reset();
     }
 
-    // Ajouter une rue
-    private async Task AddRue()
+    // Ajouter une employe
+    private async Task AddEmploye()
     {
-        var newRue = new Rue
+        var newEmploye = new Employe
             {
                 Id = Guid.NewGuid(),
-                Nom = rue.Nom,
-                Denomination = rue.Denomination,
-                NomComplet = rue.NomComplet,
-                Quartier = rue.Quartier,
-                Cp = rue.Cp,
-                Localite = rue.Localite,
-                CodeRue = rue.CodeRue,
-                TraductionNL = rue.TraductionNL,
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now,
             };
 
-        var content = JsonContent.Create(newRue);
+        var content = JsonContent.Create(newEmploye);
 
-        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/rue/add");
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/add");
         requestMsg.Content = content;
         using (var msg = await HttpClient.SendAsync(requestMsg))
         {
             if (msg.IsSuccessStatusCode)
             {
-                StateContainer.Rues?.Add(newRue);
+                StateContainer.Employes?.Add(newEmploye);
                 Reset();
-                await HideModal();
-                ToastService.ShowSuccess("Rue ajoutée!");
+                ToastService.ShowSuccess("Employe ajoutée!");
 
             }
             else
@@ -198,44 +211,38 @@
         }
     }
 
-    // Mettre à jour une rue
-    private async Task UpdateRue()
+    // Mettre à jour une employe
+    private async Task UpdateEmploye()
     {
         if (selected is null)
         {
             return;
         }
 
-        var rueUpdate = new Rue
+        var employeUpdate = new Employe
             {
-                Id = this.selected.Id,
-                Denomination = rue.Denomination,
-                Nom = rue.Nom,
-                NomComplet = rue.NomComplet,
-                Quartier = rue.Quartier,
-                Cp = rue.Cp,
-                Localite = rue.Localite,
-                CodeRue = rue.CodeRue,
-                TraductionNL = rue.TraductionNL,
-                CreatedAt = rue.CreatedAt,
+                Id = Guid.NewGuid(),
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = employe.CreatedAt,
                 UpdatedAt = DateTime.Now,
-                DeletedAt = rue.DeletedAt,
+                DeletedAt = employe.DeletedAt,
             };
 
-        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/rue/update");
-        requestMsg.Content = JsonContent.Create(rueUpdate);
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
 
         using (var msg = await HttpClient.SendAsync(requestMsg))
         {
             if (msg.IsSuccessStatusCode)
             {
-                var index = StateContainer.Rues.IndexOf(selected);
+                var index = StateContainer.Employes.IndexOf(selected);
                 if (index != -1)
                 {
-                    StateContainer.Rues[index] = rueUpdate;
-                    UnSelectRue();
-                    ToastService.ShowSuccess("Rue mise à jour!");
-                    await HideModal();
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+                    ToastService.ShowSuccess("Employe mis à jour!");
+
 
                 }
             }
@@ -245,103 +252,90 @@
     // RESET
     private void Reset()
     {
-        rue = new Rue();
+        employe = new Employe();
         selected = null;
-        ShowModal();
+
     }
 
-    // Delete Rue
-    private async Task DeleteRue()
+    // Delete Employe
+    private async Task DeleteEmploye()
     {
         if (selected is null)
         {
             return;
         }
 
-        var rueUpdate = new Rue
+        var employeUpdate = new Employe
             {
 
                 Id = this.selected.Id,
-                Denomination = rue.Denomination,
-                Nom = rue.Nom,
-                NomComplet = rue.NomComplet,
-                Quartier = rue.Quartier,
-                Cp = rue.Cp,
-                Localite = rue.Localite,
-                CodeRue = rue.CodeRue,
-                TraductionNL = rue.TraductionNL,
-                CreatedAt = rue.CreatedAt,
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = employe.CreatedAt,
                 UpdatedAt = DateTime.Now,
                 DeletedAt = DateTime.Now,
 
             };
 
-        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/rue/update");
-        requestMsg.Content = JsonContent.Create(rueUpdate);
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
 
         using (var msg = await HttpClient.SendAsync(requestMsg))
         {
             if (msg.IsSuccessStatusCode)
             {
-                var index = StateContainer.Rues.IndexOf(selected);
+                var index = StateContainer.Employes.IndexOf(selected);
                 if (index != -1)
                 {
-                    StateContainer.Rues[index] = rueUpdate;
-                    UnSelectRue();
-                    await HideModal();
-                    ToastService.ShowWarning("Rue effacée");
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+
+                    ToastService.ShowWarning("Employe effacé");
                 }
             }
         }
     }
 
-    // Restaurer une Rue
-    private async Task RestoreDeletedRue()
+    // Restaurer une Employe
+    private async Task RestoreDeletedEmploye()
     {
         if (selected is null)
         {
             return;
         }
 
-        var rueUpdate = new Rue
+        var employeUpdate = new Employe
             {
 
                 Id = this.selected.Id,
-                Denomination = rue.Denomination,
-                Nom = rue.Nom,
-                NomComplet = rue.NomComplet,
-                Quartier = rue.Quartier,
-                Cp = rue.Cp,
-                Localite = rue.Localite,
-                CodeRue = rue.CodeRue,
-                TraductionNL = rue.TraductionNL,
-                CreatedAt = rue.CreatedAt,
+                Nom = employe.Nom,
+                Prenom = employe.Prenom,
+                CreatedAt = employe.CreatedAt,
                 UpdatedAt = DateTime.Now,
                 DeletedAt = null,
 
             };
 
-        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/rue/update");
-        requestMsg.Content = JsonContent.Create(rueUpdate);
+        var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/update");
+        requestMsg.Content = JsonContent.Create(employeUpdate);
 
         using (var msg = await HttpClient.SendAsync(requestMsg))
         {
             if (msg.IsSuccessStatusCode)
             {
-                var index = StateContainer.Rues.IndexOf(selected);
+                var index = StateContainer.Employes.IndexOf(selected);
                 if (index != -1)
                 {
-                    StateContainer.Rues[index] = rueUpdate;
-                    UnSelectRue();
-                    await HideModal();
-                    ToastService.ShowInfo("Rue Restaurée");
+                    StateContainer.Employes[index] = employeUpdate;
+                    UnSelectEmploye();
+                    ToastService.ShowInfo("Employe Restauré");
                 }
             }
         }
     }
 
-    // Effacer une Rue
-    private async Task DeleteCompleteRue()
+    // Effacer une Employe
+    private async Task DeleteCompleteEmploye()
     {
         if (selected is null)
         {
@@ -357,84 +351,66 @@
 
         try
         {
-            var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/rue/delete");
+            var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/employe/delete");
             requestMsg.Content = JsonContent.Create(selected);
 
             using (var msg = await HttpClient.SendAsync(requestMsg))
             {
                 if (msg.IsSuccessStatusCode)
                 {
-                    StateContainer.Rues.Remove(selected);
-                    UnSelectRue();
-                    await HideModal();
-                    ToastService.ShowWarning("Rue complètement effacée");
+                    StateContainer.Employes.Remove(selected);
+                    ToastService.ShowWarning("Employe complètement effacée");
                 }
                 else
                 {
                     string errorMessage = await msg.Content.ReadAsStringAsync();
-                    await HideModal();
                     ToastService.ShowError(errorMessage);
                 }
             }
         }
         catch (Exception ex)
         {
-            ToastService.ShowError("Une erreur s'est produite lors de la suppression de la rue.");
+            ToastService.ShowError("Une erreur s'est produite lors de la suppression de la employe.");
             Console.WriteLine(ex);
         }
     }
 
-    // Selectionner une rue
-    private void SelectRue(Rue art)
+    // Selectionner une employe
+    private void SelectEmploye(Employe emp)
     {
 
-        StateContainer.SelectedRue = art;
-        selected = art;
-        rue = art;
+        StateContainer.SelectedEmploye = emp;
+        selected = emp;
+        employe = emp;
         InvokeAsync(StateHasChanged);
 
     }
 
-    // Déselectionner une rue
-    private void UnSelectRue()
+    // Déselectionner une employe
+    private void UnSelectEmploye()
     {
         selected = null;
         Reset();
     }
 
     // Mettre en évidence la ligne sélectionnée
-    private string GetRowStyle(Rue rue)
+    private string GetRowStyle(Employe employe)
     {
-        return selected == rue ? "box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); border: 1px solid #333; color: white; background-color: #337ab7;" : string.Empty;
+        return selected == employe ? "box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); border: 1px solid #333; color: white; background-color: #337ab7;" : string.Empty;
     }
 
     // Confirmation d'effacement
     async Task<bool> ConfirmDelete()
     {
-        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer définitivement cette rue ??");
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer définitivement cette employe ??");
         return confirmed;
-    }
-
-
-    // Référence au Modal d'ajout d'Rue
-    private Modal? modalAjoutRue;
-
-    // Montrer la modal
-    private Task ShowModal()
-    {
-        return modalAjoutRue?.Show() ?? Task.CompletedTask;
-    }
-
-    // Cacher la modal
-    private Task HideModal()
-    {
-        return modalAjoutRue?.Hide() ?? Task.CompletedTask;
     }
 
     // Nettoyage et libération des ressources
     public void Dispose()
     {
-        StateContainer.OnRueUpdated -= this.OnRueUpdated;
-        StateContainer.OnRueSelected -= this.OnRueSelected;
+        StateContainer.OnEmployeUpdated -= this.OnEmployeUpdated;
+        StateContainer.OnEmployeSelected -= this.OnEmployeSelected;
     }
+
 }

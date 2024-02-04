@@ -1,7 +1,13 @@
 using CRUD.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Blazored.Toast;
+using Blazorise;
+using Microsoft.EntityFrameworkCore;
+using Syncfusion.Blazor;
 using CRUD;
+
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +18,14 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<StateContainer>();
+
+
+
+//Ajout du service Toast
+builder.Services.AddBlazoredToast();
+builder.Services.AddBlazorise();
+builder.Services.AddSyncfusionBlazor();
+builder.Services.AddBlazorise(options => { options.Immediate = true; });
 
 
 var app = builder.Build();
@@ -27,10 +41,10 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-
+app.MapControllers();
 app.UseRouting();
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
-
+app.MapRazorPages();
 app.Run();
