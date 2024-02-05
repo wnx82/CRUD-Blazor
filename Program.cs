@@ -11,8 +11,6 @@ using Syncfusion.Blazor;
 using CRUD;
 
 
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -23,14 +21,27 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<StateContainer>();
 
 
+builder.Services.AddDbContext<Database>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("MainConnection")));
+builder.Services.AddBlazorStrap();
+//Ajout du service Toast
+builder.Services.AddBlazoredToast();
+builder.Services.AddBlazorise();
+builder.Services.AddSyncfusionBlazor();
+builder.Services
+	.AddBlazorise(options =>
+	{
+		options.Immediate = true;
+	})
+	.AddBootstrapProviders()
+	.AddFontAwesomeIcons();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+	app.UseExceptionHandler("/Error");
+	// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+	app.UseHsts();
 }
 
 app.UseHttpsRedirection();

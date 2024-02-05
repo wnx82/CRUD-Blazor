@@ -19,11 +19,10 @@ namespace CRUD.Entities
         [Column("CreatedAt")]
         public DateTime? CreatedAt { get; set; }
 
-        [Column("Birthday")]
-        public DateTime? Birthday { get; set; }
+		[Column("UpdatedAt")]
+		public DateTime? UpdatedAt { get; set; }
 
-
-        [Column("DeletedAt")]
+		[Column("DeletedAt")]
         public DateTime? DeletedAt { get; set; }
     }
 
