@@ -6,9 +6,8 @@ namespace CRUD.Entities
 {
     public class Employe
     {
-
         [Key]
-        [Column("Id_Employe")]
+        [Column("Id")]
         public Guid Id { get; set; }
 
         [Column("Nom")]
@@ -17,19 +16,15 @@ namespace CRUD.Entities
         [Column("Prenom")]
         public string? Prenom { get; set; }
 
+        [Column("CreatedAt")]
+        public DateTime? CreatedAt { get; set; }
 
         [Column("Birthday")]
         public DateTime? Birthday { get; set; }
 
 
-        [Column("CreatedAt")]
-        public DateTime? CreatedAt { get; set; }
-
-        [Column("UpdatedAt")]
-        public DateTime? UpdatedAt { get; set; }
-
         [Column("DeletedAt")]
         public DateTime? DeletedAt { get; set; }
-
     }
+
 }

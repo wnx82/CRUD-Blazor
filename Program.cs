@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Blazored.Toast;
 using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
+using BlazorStrap;
 using Microsoft.EntityFrameworkCore;
 using Syncfusion.Blazor;
 using CRUD;
@@ -18,14 +21,6 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<StateContainer>();
-
-
-
-//Ajout du service Toast
-builder.Services.AddBlazoredToast();
-builder.Services.AddBlazorise();
-builder.Services.AddSyncfusionBlazor();
-builder.Services.AddBlazorise(options => { options.Immediate = true; });
 
 
 var app = builder.Build();
